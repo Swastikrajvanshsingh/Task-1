@@ -3,6 +3,7 @@
 
 #include "task.hpp"
 #include <queue>
+#include <vector>
 #include <memory>
 #include <mutex>
 #include <condition_variable>
@@ -25,9 +26,34 @@ public:
     bool is_closed() const;
 
 private:
+    struct TaskWrapper {
+        mutable std::unique_ptr<Task> task;
+        size_t sequence;
+
+        TaskWrapper(std::unique_ptr<Task> t, size_t seq)
+            : task(std::move(t)), sequence(seq) {}
+
+        TaskWrapper(TaskWrapper&& other) noexcept
+            : task(std::move(other.task)), sequence(other.sequence) {}
+
+        TaskWrapper& operator=(TaskWrapper&& other) noexcept {
+            task = std::move(other.task);
+            sequence = other.sequence;
+            return *this;
+        }
+
+        bool operator<(const TaskWrapper& other) const {
+            if (task->priority() == other.task->priority()) {
+                return sequence > other.sequence;  // FIFO for same priority
+            }
+            return task->priority() < other.task->priority();  // Higher priority first
+        }
+    };
+
     mutable std::mutex mutex_;
     std::condition_variable cv_;
-    std::queue<std::unique_ptr<Task>> queue_;
+    std::priority_queue<TaskWrapper> queue_;
+    size_t sequence_counter_ = 0;
     bool closed_ = false;
 };
 
