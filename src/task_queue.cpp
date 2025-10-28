@@ -1,4 +1,6 @@
 #include "taskscheduler/task_queue.hpp"
+#include <queue>
+#include <vector>
 
 namespace taskscheduler {
 
@@ -8,7 +10,7 @@ void TaskQueue::push(std::unique_ptr<Task> task) {
         if (closed_) {
             return;
         }
-        queue_.push(std::move(task));
+        queue_.emplace(std::move(task), sequence_counter_++);
     }
     cv_.notify_one();
 }
@@ -21,7 +23,7 @@ std::unique_ptr<Task> TaskQueue::pop() {
         return nullptr;
     }
 
-    auto task = std::move(queue_.front());
+    auto task = std::move(queue_.top().task);
     queue_.pop();
     return task;
 }
