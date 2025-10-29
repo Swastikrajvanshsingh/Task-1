@@ -42,7 +42,39 @@ void ThreadPool::submit(std::unique_ptr<Task> task) {
     if (!running_) {
         start();
     }
-    task_queue_.push(std::move(task));
+
+    TaskId task_id = dependency_tracker_.assign_id(task);
+
+    if (task->dependencies().empty()) {
+        task_queue_.push(std::move(task));
+    } else {
+        dependency_tracker_.add_task(std::move(task));
+        process_ready_tasks();
+    }
+}
+
+TaskId ThreadPool::submit_with_id(std::unique_ptr<Task> task) {
+    if (!running_) {
+        start();
+    }
+
+    TaskId task_id = dependency_tracker_.assign_id(task);
+
+    if (task->dependencies().empty()) {
+        task_queue_.push(std::move(task));
+    } else {
+        dependency_tracker_.add_task(std::move(task));
+        process_ready_tasks();
+    }
+
+    return task_id;
+}
+
+void ThreadPool::process_ready_tasks() {
+    auto ready = dependency_tracker_.get_ready_tasks();
+    for (auto& task : ready) {
+        task_queue_.push(std::move(task));
+    }
 }
 
 size_t ThreadPool::thread_count() const {
@@ -61,7 +93,10 @@ void ThreadPool::worker_loop() {
     while (running_ || !task_queue_.is_closed()) {
         auto task = task_queue_.pop();
         if (task) {
+            TaskId task_id = task->id();
             task->execute();
+            dependency_tracker_.mark_completed(task_id);
+            process_ready_tasks();
         }
 
         if (task_queue_.is_closed() && task_queue_.empty()) {

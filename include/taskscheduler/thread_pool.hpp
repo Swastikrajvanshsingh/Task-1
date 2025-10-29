@@ -2,6 +2,7 @@
 #define TASKSCHEDULER_THREAD_POOL_HPP
 
 #include "task_queue.hpp"
+#include "dependency_tracker.hpp"
 #include <thread>
 #include <vector>
 #include <atomic>
@@ -13,6 +14,7 @@ namespace taskscheduler {
 /**
  * Thread pool with fixed worker count.
  * Processes tasks from a shared queue using multiple worker threads.
+ * Supports task dependencies.
  */
 class ThreadPool {
 public:
@@ -25,6 +27,7 @@ public:
     void start();
     void stop();
     void submit(std::unique_ptr<Task> task);
+    TaskId submit_with_id(std::unique_ptr<Task> task);
 
     template<typename F, typename... Args>
     auto submit(F&& f, Args&&... args) -> std::future<typename std::invoke_result<F, Args...>::type>;
@@ -35,8 +38,10 @@ public:
 
 private:
     void worker_loop();
+    void process_ready_tasks();
 
     TaskQueue task_queue_;
+    DependencyTracker dependency_tracker_;
     std::vector<std::thread> threads_;
     std::atomic<bool> running_{false};
     size_t num_threads_;
