@@ -10,6 +10,7 @@ set(LIB_SOURCES
     src/task.cpp
     src/task_queue.cpp
     src/thread_pool.cpp
+    src/dependency_tracker.cpp
 )
 
 # Create static library
