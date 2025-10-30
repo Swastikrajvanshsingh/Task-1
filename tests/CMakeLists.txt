@@ -15,6 +15,7 @@ add_executable(unit_tests
     unit/task_queue_test.cpp
     unit/thread_pool_test.cpp
     unit/dependency_tracker_test.cpp
+    unit/statistics_test.cpp
 )
 
 target_link_libraries(unit_tests
