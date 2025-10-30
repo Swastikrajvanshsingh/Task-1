@@ -43,6 +43,25 @@ private:
         }
 
         bool operator<(const TaskWrapper& other) const {
+            // First, consider deadlines
+            bool this_has_deadline = task->has_deadline();
+            bool other_has_deadline = other.task->has_deadline();
+
+            // If both have deadlines, prioritize the earlier deadline
+            if (this_has_deadline && other_has_deadline) {
+                auto this_deadline = task->deadline().value();
+                auto other_deadline = other.task->deadline().value();
+                if (this_deadline != other_deadline) {
+                    return this_deadline > other_deadline;  // Earlier deadline has higher priority
+                }
+            }
+
+            // If only one has a deadline, it gets priority
+            if (this_has_deadline != other_has_deadline) {
+                return !this_has_deadline;  // Task with deadline wins
+            }
+
+            // Fall back to priority comparison
             if (task->priority() == other.task->priority()) {
                 return sequence > other.sequence;  // FIFO for same priority
             }

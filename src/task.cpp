@@ -30,4 +30,16 @@ void Task::set_id(TaskId id) {
     id_ = id;
 }
 
+void Task::set_deadline(TimePoint deadline) {
+    deadline_ = deadline;
+}
+
+std::optional<Task::TimePoint> Task::deadline() const {
+    return deadline_;
+}
+
+bool Task::has_deadline() const {
+    return deadline_.has_value();
+}
+
 } // namespace taskscheduler
