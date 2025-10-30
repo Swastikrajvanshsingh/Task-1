@@ -3,6 +3,7 @@
 
 #include "task_queue.hpp"
 #include "dependency_tracker.hpp"
+#include "statistics.hpp"
 #include <thread>
 #include <vector>
 #include <atomic>
@@ -36,12 +37,16 @@ public:
     size_t pending_tasks() const;
     bool is_running() const;
 
+    StatisticsSnapshot get_statistics() const;
+    void reset_statistics();
+
 private:
     void worker_loop();
     void process_ready_tasks();
 
     TaskQueue task_queue_;
     DependencyTracker dependency_tracker_;
+    Statistics statistics_;
     std::vector<std::thread> threads_;
     std::atomic<bool> running_{false};
     size_t num_threads_;

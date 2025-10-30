@@ -1,4 +1,5 @@
 #include "taskscheduler/thread_pool.hpp"
+#include <chrono>
 
 namespace taskscheduler {
 
@@ -89,12 +90,30 @@ bool ThreadPool::is_running() const {
     return running_;
 }
 
+StatisticsSnapshot ThreadPool::get_statistics() const {
+    return statistics_.get_snapshot();
+}
+
+void ThreadPool::reset_statistics() {
+    statistics_.reset();
+}
+
 void ThreadPool::worker_loop() {
     while (running_ || !task_queue_.is_closed()) {
+        statistics_.set_queue_depth(task_queue_.size());
         auto task = task_queue_.pop();
         if (task) {
+            statistics_.increment_active_workers();
+
+            auto start_time = std::chrono::high_resolution_clock::now();
             TaskId task_id = task->id();
             task->execute();
+            auto end_time = std::chrono::high_resolution_clock::now();
+
+            std::chrono::duration<double, std::milli> duration = end_time - start_time;
+            statistics_.record_task_completed(duration.count());
+            statistics_.decrement_active_workers();
+
             dependency_tracker_.mark_completed(task_id);
             process_ready_tasks();
         }
