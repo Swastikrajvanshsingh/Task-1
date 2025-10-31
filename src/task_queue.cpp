@@ -51,4 +51,30 @@ bool TaskQueue::is_closed() const {
     return closed_;
 }
 
+bool TaskQueue::cancel_task(TaskId id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Extract all tasks from the priority queue to search for the target
+    std::vector<TaskWrapper> temp_tasks;
+    bool found = false;
+
+    while (!queue_.empty()) {
+        auto wrapper = std::move(const_cast<TaskWrapper&>(queue_.top()));
+        queue_.pop();
+
+        if (wrapper.task->id() == id) {
+            wrapper.task->cancel();
+            found = true;
+        }
+        temp_tasks.push_back(std::move(wrapper));
+    }
+
+    // Restore all tasks back to the queue
+    for (auto& wrapper : temp_tasks) {
+        queue_.push(std::move(wrapper));
+    }
+
+    return found;
+}
+
 } // namespace taskscheduler

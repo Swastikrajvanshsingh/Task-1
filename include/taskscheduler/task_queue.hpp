@@ -24,6 +24,7 @@ public:
     bool empty() const;
     void close();
     bool is_closed() const;
+    bool cancel_task(TaskId id);
 
 private:
     struct TaskWrapper {

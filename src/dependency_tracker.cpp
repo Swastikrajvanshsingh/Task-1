@@ -66,4 +66,16 @@ bool DependencyTracker::has_pending_tasks() const {
     return !pending_tasks_.empty();
 }
 
+bool DependencyTracker::cancel_task(TaskId id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto it = pending_tasks_.find(id);
+    if (it != pending_tasks_.end()) {
+        it->second->cancel();
+        return true;
+    }
+
+    return false;
+}
+
 } // namespace taskscheduler

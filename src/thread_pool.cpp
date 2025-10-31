@@ -123,6 +123,16 @@ void ThreadPool::reset_statistics() {
     statistics_.reset();
 }
 
+bool ThreadPool::cancel_task(TaskId id) {
+    // Try to cancel in the task queue
+    bool cancelled_in_queue = task_queue_.cancel_task(id);
+
+    // Try to cancel in the dependency tracker
+    bool cancelled_in_tracker = dependency_tracker_.cancel_task(id);
+
+    return cancelled_in_queue || cancelled_in_tracker;
+}
+
 void ThreadPool::worker_loop() {
     while (running_ || !task_queue_.is_closed()) {
         statistics_.set_queue_depth(task_queue_.size());

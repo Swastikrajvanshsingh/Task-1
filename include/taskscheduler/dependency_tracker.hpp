@@ -24,6 +24,7 @@ public:
     std::vector<std::unique_ptr<Task>> get_ready_tasks();
     void mark_completed(TaskId task_id);
     bool has_pending_tasks() const;
+    bool cancel_task(TaskId id);
 
 private:
     mutable std::mutex mutex_;

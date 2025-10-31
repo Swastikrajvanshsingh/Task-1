@@ -7,6 +7,7 @@
 #include <vector>
 #include <chrono>
 #include <optional>
+#include <atomic>
 
 namespace taskscheduler {
 
@@ -29,12 +30,16 @@ public:
     std::optional<TimePoint> deadline() const;
     bool has_deadline() const;
 
+    void cancel();
+    bool is_cancelled() const;
+
 private:
     Callable callable_;
     Priority priority_;
     TaskId id_{INVALID_TASK_ID};
     std::vector<TaskId> dependencies_;
     std::optional<TimePoint> deadline_;
+    std::atomic<bool> cancelled_{false};
 };
 
 } // namespace taskscheduler
