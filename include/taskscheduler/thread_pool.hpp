@@ -27,6 +27,8 @@ public:
 
     void start();
     void stop();
+    void shutdown_graceful();
+    void shutdown_immediate();
     void submit(std::unique_ptr<Task> task);
     TaskId submit_with_id(std::unique_ptr<Task> task);
 
