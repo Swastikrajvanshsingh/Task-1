@@ -191,3 +191,113 @@ TEST(ThreadPoolTest, Issue13_MultipleShutdownsSafe) {
 
     EXPECT_FALSE(pool.is_running());
 }
+
+// F2P Test: Cancel pending task before execution
+TEST(ThreadPoolTest, Issue15_CancelPendingTask) {
+    ThreadPool pool(1);
+    std::atomic<int> executed{0};
+
+    // Submit a long-running task to block the worker
+    pool.submit(std::make_unique<Task>([]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }));
+
+    // Submit a task that we'll cancel
+    TaskId cancel_id = pool.submit_with_id(std::make_unique<Task>([&executed]() {
+        executed++;
+    }));
+
+    // Cancel the task before it starts
+    bool cancelled = pool.cancel_task(cancel_id);
+
+    pool.shutdown_graceful();
+
+    EXPECT_TRUE(cancelled);
+    EXPECT_EQ(executed, 0);
+}
+
+// F2P Test: Cancel task with dependencies
+TEST(ThreadPoolTest, Issue15_CancelTaskWithDependencies) {
+    ThreadPool pool(2);
+    std::atomic<int> task1_executed{0};
+    std::atomic<int> task2_executed{0};
+
+    TaskId task1_id = pool.submit_with_id(std::make_unique<Task>([&task1_executed]() {
+        task1_executed++;
+    }));
+
+    TaskId task2_id = pool.submit_with_id(std::make_unique<Task>(
+        [&task2_executed]() {
+            task2_executed++;
+        },
+        Priority::NORMAL,
+        std::vector<TaskId>{task1_id}
+    ));
+
+    // Cancel the dependent task immediately
+    bool cancelled = pool.cancel_task(task2_id);
+
+    // Wait for task1 to complete
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    pool.shutdown_graceful();
+
+    EXPECT_TRUE(cancelled);
+    EXPECT_EQ(task1_executed, 1);
+    EXPECT_EQ(task2_executed, 0);
+}
+
+// F2P Test: Cancel returns false for non-existent task
+TEST(ThreadPoolTest, Issue15_CancelNonExistentTask) {
+    ThreadPool pool(2);
+
+    TaskId fake_id = 99999;
+    bool cancelled = pool.cancel_task(fake_id);
+
+    EXPECT_FALSE(cancelled);
+
+    pool.shutdown_graceful();
+}
+
+// P2P Test: Uncancelled tasks execute normally
+TEST(ThreadPoolTest, Issue15_UncancelledTasksExecute) {
+    ThreadPool pool(2);
+    std::atomic<int> counter{0};
+
+    for (int i = 0; i < 5; ++i) {
+        pool.submit(std::make_unique<Task>([&counter]() {
+            counter++;
+        }));
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    pool.shutdown_graceful();
+
+    EXPECT_EQ(counter, 5);
+}
+
+// P2P Test: Statistics still track after cancellation
+TEST(ThreadPoolTest, Issue15_StatisticsWithCancellation) {
+    ThreadPool pool(2);
+    std::atomic<int> executed{0};
+
+    pool.submit(std::make_unique<Task>([]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }));
+
+    TaskId cancel_id = pool.submit_with_id(std::make_unique<Task>([&executed]() {
+        executed++;
+    }));
+
+    pool.cancel_task(cancel_id);
+
+    pool.submit(std::make_unique<Task>([]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    pool.shutdown_graceful();
+
+    auto stats = pool.get_statistics();
+    EXPECT_GE(stats.completed_tasks, 2);
+}

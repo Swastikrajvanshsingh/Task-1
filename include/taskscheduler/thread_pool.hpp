@@ -31,6 +31,7 @@ public:
     void shutdown_immediate();
     void submit(std::unique_ptr<Task> task);
     TaskId submit_with_id(std::unique_ptr<Task> task);
+    bool cancel_task(TaskId id);
 
     template<typename F, typename... Args>
     auto submit(F&& f, Args&&... args) -> std::future<typename std::invoke_result<F, Args...>::type>;

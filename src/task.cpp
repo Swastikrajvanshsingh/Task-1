@@ -9,7 +9,7 @@ Task::Task(Callable callable, Priority priority, const std::vector<TaskId>& depe
     : callable_(std::move(callable)), priority_(priority), dependencies_(dependencies) {}
 
 void Task::execute() {
-    if (callable_) {
+    if (!is_cancelled() && callable_) {
         callable_();
     }
 }
@@ -40,6 +40,14 @@ std::optional<Task::TimePoint> Task::deadline() const {
 
 bool Task::has_deadline() const {
     return deadline_.has_value();
+}
+
+void Task::cancel() {
+    cancelled_.store(true, std::memory_order_relaxed);
+}
+
+bool Task::is_cancelled() const {
+    return cancelled_.load(std::memory_order_relaxed);
 }
 
 } // namespace taskscheduler
