@@ -23,6 +23,27 @@ void ThreadPool::start() {
 }
 
 void ThreadPool::stop() {
+    shutdown_immediate();
+}
+
+void ThreadPool::shutdown_graceful() {
+    if (!running_) {
+        return;
+    }
+
+    running_ = false;
+    task_queue_.close();
+
+    for (auto& thread : threads_) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    threads_.clear();
+}
+
+void ThreadPool::shutdown_immediate() {
     if (!running_) {
         return;
     }
@@ -40,8 +61,12 @@ void ThreadPool::stop() {
 }
 
 void ThreadPool::submit(std::unique_ptr<Task> task) {
-    if (!running_) {
+    if (!running_ && !task_queue_.is_closed()) {
         start();
+    }
+
+    if (task_queue_.is_closed()) {
+        return;  // Don't accept new tasks after shutdown
     }
 
     TaskId task_id = dependency_tracker_.assign_id(task);
